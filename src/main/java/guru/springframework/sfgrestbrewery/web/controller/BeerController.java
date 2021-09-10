@@ -6,7 +6,6 @@ import guru.springframework.sfgrestbrewery.web.model.BeerPagedList;
 import guru.springframework.sfgrestbrewery.web.model.BeerStyleEnum;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -28,18 +27,18 @@ public class BeerController {
 
     private final BeerService beerService;
 
-    @GetMapping(produces = { "application/json" }, path = "beer")
+    @GetMapping(produces = {"application/json"}, path = "beer")
     public ResponseEntity<Mono<BeerPagedList>> listBeers(@RequestParam(value = "pageNumber", required = false) Integer pageNumber,
-                                                   @RequestParam(value = "pageSize", required = false) Integer pageSize,
-                                                   @RequestParam(value = "beerName", required = false) String beerName,
-                                                   @RequestParam(value = "beerStyle", required = false) BeerStyleEnum beerStyle,
-                                                   @RequestParam(value = "showInventoryOnHand", required = false) Boolean showInventoryOnHand){
+                                                         @RequestParam(value = "pageSize", required = false) Integer pageSize,
+                                                         @RequestParam(value = "beerName", required = false) String beerName,
+                                                         @RequestParam(value = "beerStyle", required = false) BeerStyleEnum beerStyle,
+                                                         @RequestParam(value = "showInventoryOnHand", required = false) Boolean showInventoryOnHand) {
 
         if (showInventoryOnHand == null) {
             showInventoryOnHand = false;
         }
 
-        if (pageNumber == null || pageNumber < 0){
+        if (pageNumber == null || pageNumber < 0) {
             pageNumber = DEFAULT_PAGE_NUMBER;
         }
 
@@ -47,27 +46,26 @@ public class BeerController {
             pageSize = DEFAULT_PAGE_SIZE;
         }
 
-        return ResponseEntity.ok(Mono.just(beerService.listBeers(beerName, beerStyle, PageRequest.of(pageNumber, pageSize), showInventoryOnHand)));
+        return ResponseEntity.ok(beerService.listBeers(beerName, beerStyle, PageRequest.of(pageNumber, pageSize), showInventoryOnHand));
     }
 
     @GetMapping("beer/{beerId}")
-    public ResponseEntity<Mono<BeerDto>> getBeerById(@PathVariable("beerId") UUID beerId,
-                                                     @RequestParam(value = "showInventoryOnHand", required = false) Boolean showInventoryOnHand){
+    public ResponseEntity<Mono<BeerDto>> getBeerById(@PathVariable("beerId") Integer beerId,
+                                                     @RequestParam(value = "showInventoryOnHand", required = false) Boolean showInventoryOnHand) {
         if (showInventoryOnHand == null) {
             showInventoryOnHand = false;
         }
 
-        return ResponseEntity.ok(Mono.just(beerService.getById(beerId, showInventoryOnHand)));
+        return ResponseEntity.ok(beerService.getById(beerId, showInventoryOnHand));
     }
 
     @GetMapping("beerUpc/{upc}")
-    public ResponseEntity<Mono<BeerDto>> getBeerByUpc(@PathVariable("upc") String upc){
-        //return new ResponseEntity<>(beerService.getByUpc(upc), HttpStatus.OK);
-        return ResponseEntity.ok(Mono.just(beerService.getByUpc(upc)));
+    public ResponseEntity<Mono<BeerDto>> getBeerByUpc(@PathVariable("upc") String upc) {
+        return ResponseEntity.ok(beerService.getByUpc(upc));
     }
 
     @PostMapping(path = "beer")
-    public ResponseEntity saveNewBeer(@RequestBody @Validated BeerDto beerDto){
+    public ResponseEntity<Void> saveNewBeer(@RequestBody @Validated BeerDto beerDto) {
 
         BeerDto savedBeer = beerService.saveNewBeer(beerDto);
 
@@ -79,14 +77,16 @@ public class BeerController {
     }
 
     @PutMapping("beer/{beerId}")
-    public ResponseEntity<Void> updateBeerById(@PathVariable("beerId") UUID beerId, @RequestBody @Validated BeerDto beerDto){
-        beerService.updateBeer(beerId, beerDto);
+    public ResponseEntity<Void> updateBeerById(@PathVariable("beerId") UUID beerId, @RequestBody @Validated BeerDto beerDto) {
         return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("beer/{beerId}")
-    public ResponseEntity<Void> deleteBeerById(@PathVariable("beerId") UUID beerId){
+    public ResponseEntity<Void> deleteBeerById(@PathVariable("beerId") Integer beerId) {
+
         beerService.deleteBeerById(beerId);
-        return ResponseEntity.noContent().build();
+
+        return ResponseEntity.ok().build();
     }
+
 }
