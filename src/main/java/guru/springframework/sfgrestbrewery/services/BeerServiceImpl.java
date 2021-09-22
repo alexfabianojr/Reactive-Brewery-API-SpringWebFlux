@@ -8,6 +8,7 @@ import guru.springframework.sfgrestbrewery.web.model.BeerPagedList;
 import guru.springframework.sfgrestbrewery.web.model.BeerStyleEnum;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import reactor.core.publisher.Mono;
 
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -77,22 +79,31 @@ public class BeerServiceImpl implements BeerService {
     }
 
     @Override
-    public BeerDto saveNewBeer(BeerDto beerDto) {
-     //   return beerMapper.beerToBeerDto(beerRepository.save(beerMapper.beerDtoToBeer(beerDto)));
-        return null;
+    public Mono<BeerDto> saveNewBeer(BeerDto beerDto) {
+        //   return beerMapper.beerToBeerDto(beerRepository.save(beerMapper.beerDtoToBeer(beerDto)));
+        return beerRepository.save(beerMapper.beerDtoToBeer(beerDto)).map(beerMapper::beerToBeerDto);
     }
 
     @Override
-    public BeerDto updateBeer(UUID beerId, BeerDto beerDto) {
-//        Beer beer = beerRepository.findById(beerId).orElseThrow(NotFoundException::new);
-//
-//        beer.setBeerName(beerDto.getBeerName());
-//        beer.setBeerStyle(BeerStyleEnum.PILSNER.valueOf(beerDto.getBeerStyle()));
-//        beer.setPrice(beerDto.getPrice());
-//        beer.setUpc(beerDto.getUpc());
-//
-//        return beerMapper.beerToBeerDto(beerRepository.save(beer));
-        return null;
+    public Mono<BeerDto> updateBeer(Integer beerId, BeerDto beerDto) {
+        return beerRepository
+                .findById(beerId)
+                .defaultIfEmpty(Beer.builder().build())
+                .map(beer -> {
+                    beer.setBeerName(beerDto.getBeerName());
+                    beer.setBeerStyle(BeerStyleEnum.valueOf(beerDto.getBeerStyle()));
+                    beer.setPrice(beerDto.getPrice());
+                    beer.setPrice(beerDto.getPrice());
+                    beer.setUpc(beerDto.getUpc());
+                    return beer;
+                })
+                .flatMap(updatedBeer -> {
+                    if (Objects.nonNull(updatedBeer.getId())) {
+                        return beerRepository.save(updatedBeer);
+                    }
+                    return Mono.just(updatedBeer);
+                })
+                .map(beerMapper::beerToBeerDto);
     }
 
     @Cacheable(cacheNames = "beerUpcCache")
