@@ -2,6 +2,7 @@ package guru.springframework.sfgrestbrewery.services;
 
 import guru.springframework.sfgrestbrewery.domain.Beer;
 import guru.springframework.sfgrestbrewery.repositories.BeerRepository;
+import guru.springframework.sfgrestbrewery.web.controller.NotFoundException;
 import guru.springframework.sfgrestbrewery.web.mappers.BeerMapper;
 import guru.springframework.sfgrestbrewery.web.model.BeerDto;
 import guru.springframework.sfgrestbrewery.web.model.BeerPagedList;
@@ -17,9 +18,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import reactor.core.publisher.Mono;
 
-import java.util.Objects;
 import java.util.stream.Collectors;
 
+import static java.util.Objects.nonNull;
 import static org.springframework.data.relational.core.query.Criteria.where;
 import static org.springframework.data.relational.core.query.Query.empty;
 import static org.springframework.data.relational.core.query.Query.query;
@@ -70,23 +71,35 @@ public class BeerServiceImpl implements BeerService {
     @Override
     public Mono<BeerDto> getById(Integer beerId, Boolean showInventoryOnHand) {
         if (showInventoryOnHand) {
-            return beerRepository.findById(beerId).map(beerMapper::beerToBeerDtoWithInventory);
+            return beerRepository
+                    .findById(beerId)
+                    .map(beerMapper::beerToBeerDtoWithInventory);
         } else {
-            return beerRepository.findById(beerId).map(beerMapper::beerToBeerDto);
+            return beerRepository
+                    .findById(beerId)
+                    .map(beerMapper::beerToBeerDto);
         }
     }
 
     @Override
     public Mono<BeerDto> saveNewBeer(BeerDto beerDto) {
-        //   return beerMapper.beerToBeerDto(beerRepository.save(beerMapper.beerDtoToBeer(beerDto)));
-        return beerRepository.save(beerMapper.beerDtoToBeer(beerDto)).map(beerMapper::beerToBeerDto);
+        return beerRepository
+                .save(beerMapper.beerDtoToBeer(beerDto))
+                .map(beerMapper::beerToBeerDto);
+    }
+
+    @Override
+    public Mono<BeerDto> saveNewBeerMono(Mono<BeerDto> beerDto) {
+        return beerDto
+                .map(beerMapper::beerDtoToBeer)
+                .flatMap(beerRepository::save)
+                .map(beerMapper::beerToBeerDto);
     }
 
     @Override
     public Mono<BeerDto> updateBeer(Integer beerId, BeerDto beerDto) {
         return beerRepository
                 .findById(beerId)
-                .defaultIfEmpty(Beer.builder().build())
                 .map(beer -> {
                     beer.setBeerName(beerDto.getBeerName());
                     beer.setBeerStyle(BeerStyleEnum.valueOf(beerDto.getBeerStyle()));
@@ -95,8 +108,9 @@ public class BeerServiceImpl implements BeerService {
                     beer.setUpc(beerDto.getUpc());
                     return beer;
                 })
+                .defaultIfEmpty(Beer.builder().build())
                 .flatMap(updatedBeer -> {
-                    if (Objects.nonNull(updatedBeer.getId())) {
+                    if (nonNull(updatedBeer.getId())) {
                         return beerRepository.save(updatedBeer);
                     }
                     return Mono.just(updatedBeer);
@@ -107,7 +121,9 @@ public class BeerServiceImpl implements BeerService {
     @Cacheable(cacheNames = "beerUpcCache")
     @Override
     public Mono<BeerDto> getByUpc(String upc) {
-        return beerRepository.findByUpc(upc).map(beerMapper::beerToBeerDto);
+        return beerRepository
+                .findByUpc(upc)
+                .map(beerMapper::beerToBeerDto);
     }
 
     @Override
@@ -115,5 +131,14 @@ public class BeerServiceImpl implements BeerService {
         beerRepository
                 .deleteById(beerId)
                 .subscribe();
+    }
+
+    @Override
+    public Mono<Void> reactiveDeleteById(Integer beerId) {
+        return beerRepository
+                .findById(beerId)
+                .switchIfEmpty(Mono.error(new NotFoundException()))
+                .map(Beer::getId)
+                .flatMap(beerRepository::deleteById);
     }
 }
